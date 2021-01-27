@@ -15,6 +15,7 @@ RUN go build -o ./bin/${NAME} -ldflags '-v -w -s' ./
 
 FROM alpine:latest
 
+ENV NAME "resizer"
 WORKDIR /opt/${NAME}
 
 COPY --from=builder ./bin/${NAME} ./${NAME}
