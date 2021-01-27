@@ -19,7 +19,7 @@ func NewFileHandler(s3Service services.S3Service) FileHandler {
 // Hello is the Hello handler
 func (f *FileHandler) HandleFile(ctx *gin.Context) {
 
-	file, info, err := f.S3Service.GetOrCreteFile(ctx.Request.URL.Path)
+	file, info, err := f.S3Service.GetOrCreteFile(ctx.Request.URL.Path, true)
 
 	if err != nil {
 		ctx.JSON(500, gin.H{

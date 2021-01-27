@@ -1,16 +1,18 @@
 package services
 
 import (
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/nfnt/resize"
 	"github.com/pantyukhov/imageresizeserver/pkg/setting"
+	"image"
+	"image/jpeg"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 type S3Service struct {
@@ -35,26 +37,44 @@ func NewS3Service() S3Service {
 	}
 }
 
-func (s *S3Service) GetResizeSettings(filepath string) (int, int, string) {
+func (s *S3Service) GetResizeSettings(filepath string) (uint, uint, string) {
 	items := strings.Split(filepath, "/")
 	sizes := strings.Split(strings.ToLower(items[len(items)-2]), "x")
 
 	height, err := strconv.Atoi(sizes[0])
 	if err != nil {
-		height = -1
+		height = 0
 	}
 
 	width, err := strconv.Atoi(sizes[1])
 	if err != nil {
-		width = -1
+		width = 0
 	}
-	return height, width
+	path := strings.Join(items[:len(items)-2], "/") + "/" + items[len(items)-1]
+	return uint(height), uint(width), path
+}
+
+func (s *S3Service) ResizeImage(localPath string, height uint, width uint) (image.Image, error) {
+	file, err := os.Open(localPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// decode jpeg into image.Image
+	img, err := jpeg.Decode(file)
+	file.Close()
+	if err != nil {
+		return nil, err
+	}
+	m := resize.Resize(width, height, img, resize.Lanczos3)
+
+	return m, err
+
 }
 
 func (s *S3Service) ResizeFilePath(filepath string) error {
 	height, width, path := s.GetResizeSettings(filepath)
-
-	file, err := s.MinioClient.GetObject(setting.Settings.Context.Context, setting.Settings.S3Config.Bucket, filepath, minio.GetObjectOptions{})
+	file, err := s.MinioClient.GetObject(setting.Settings.Context.Context, setting.Settings.S3Config.Bucket, path, minio.GetObjectOptions{})
 	if err != nil {
 		return err
 	}
@@ -63,7 +83,7 @@ func (s *S3Service) ResizeFilePath(filepath string) error {
 		return err
 	}
 
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "resize-")
+	tmpFile, err := ioutil.TempFile(os.TempDir(), "source-")
 
 	if err != nil {
 		return err
@@ -89,12 +109,38 @@ func (s *S3Service) ResizeFilePath(filepath string) error {
 		if err := tmpFile.Close(); err != nil {
 			log.Fatal(err)
 		}
+
 	}()
 
+	m, err := s.ResizeImage(tmpFile.Name(), height, width)
 	os.Remove(tmpFile.Name())
+
+	tmpFile, err = ioutil.TempFile(os.TempDir(), "resize-")
+	if err != nil {
+		return err
+	}
+
+	out, err := os.Create(tmpFile.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer out.Close()
+
+	// write new image to file
+	jpeg.Encode(out, m, nil)
+
+	_, err = s.MinioClient.FPutObject(setting.Settings.Context.Context, setting.Settings.S3Config.Bucket, filepath, tmpFile.Name(), minio.PutObjectOptions{
+		ContentType: info.ContentType,
+	})
+	os.Remove(tmpFile.Name())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (s *S3Service) GetOrCreteFile(filepath string) (*minio.Object, *minio.ObjectInfo, error) {
+func (s *S3Service) GetOrCreteFile(filepath string, allow_resize bool) (*minio.Object, *minio.ObjectInfo, error) {
 	if strings.HasPrefix(filepath, "/") {
 		filepath = filepath[1:]
 	}
@@ -103,7 +149,12 @@ func (s *S3Service) GetOrCreteFile(filepath string) (*minio.Object, *minio.Objec
 		return nil, nil, err
 	}
 	info, err := file.Stat()
-	if info.Key == "" {
+	if info.Key == "" && allow_resize {
+		err := s.ResizeFilePath(filepath)
+		if err != nil {
+			return nil, nil, err
+		}
+		return s.GetOrCreteFile(filepath, false)
 	}
 	return file, &info, err
 }
