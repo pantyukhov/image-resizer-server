@@ -1,9 +1,9 @@
 package transport
 
 import (
-	"github.com/fasthttp/router"
-	"github.com/valyala/fasthttp"
+	"github.com/gin-gonic/gin"
 	"log"
+	"net/http"
 )
 
 type Transport struct {
@@ -16,10 +16,24 @@ func NewTransport(fileHandler FileHandler) Transport {
 	}
 }
 
+func (t *Transport) InitHttp() {
+	baseRoute := gin.New()
+	baseRoute.Use(gin.Logger())
+	baseRoute.Use(gin.Recovery())
+	baseRoute.NoRoute(t.FileHandler.HandleFile)
 
-func (t *Transport) InitFastHTTP() {
+	baseEndPoint := ":8080"
+	maxHeaderBytes := 1 << 20
 
-	r := router.New()
-	r.GET("/{filepath:*}", t.FileHandler.HandleFile)
-	log.Fatal(fasthttp.ListenAndServe(":8080", r.Handler))
+	baseServer := &http.Server{
+		Addr:           baseEndPoint,
+		Handler:        baseRoute,
+		MaxHeaderBytes: maxHeaderBytes,
+	}
+
+	log.Printf("[info] start http server listening %s", baseEndPoint)
+	err := baseServer.ListenAndServe()
+	if err != nil {
+		panic(err)
+	}
 }

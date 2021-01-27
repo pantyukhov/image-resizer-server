@@ -1,9 +1,9 @@
 package transport
 
 import (
-	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/pantyukhov/imageresizeserver/services"
-	"github.com/valyala/fasthttp"
+	"net/http"
 )
 
 type FileHandler struct {
@@ -16,10 +16,26 @@ func NewFileHandler(s3Service services.S3Service) FileHandler {
 	}
 }
 
-
 // Hello is the Hello handler
-func (f *FileHandler) HandleFile(ctx *fasthttp.RequestCtx) {
-	fmt.Fprintf(ctx, "hello, %s!\n", ctx.UserValue("filepath"))
+func (f *FileHandler) HandleFile(ctx *gin.Context) {
+
+	file, err := f.S3Service.GetOrCreteFile("test.png")
+
+	if err != nil {
+		ctx.JSON(500, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	info, err := file.Stat()
+	if err != nil {
+		ctx.JSON(500, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	extraHeaders := map[string]string{
+		"Content-Disposition": "attachment; filename=" + info.Key,
+	}
+	ctx.DataFromReader(http.StatusOK, info.Size, "application/octet-stream", file, extraHeaders)
 }
-
-

@@ -2,5 +2,5 @@ package main
 
 func main() {
 	transport := InitializeTransport()
-	transport.InitFastHTTP()
+	transport.InitHttp()
 }
