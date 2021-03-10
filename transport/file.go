@@ -16,7 +16,8 @@ func NewFileHandler(s3Service services.S3Service) FileHandler {
 	}
 }
 
-// Hello is the Hello handler
+// Handle request to file from S3 storage
+// If file not found, try select from url
 func (f *FileHandler) HandleFile(ctx *gin.Context) {
 
 	file, info, err := f.S3Service.GetOrCreteFile(ctx.Request.URL.Path, true)
@@ -28,7 +29,14 @@ func (f *FileHandler) HandleFile(ctx *gin.Context) {
 		return
 	}
 	extraHeaders := map[string]string{
-		"Content-Disposition": "attachment; filename=" + info.Key,
+		//"Content-Disposition": "attachment; filename=" + info.Key,
 	}
-	ctx.DataFromReader(http.StatusOK, info.Size, "application/octet-stream", file, extraHeaders)
+
+	contentType := "application/octet-stream"
+
+	if len(info.ContentType) > 0 {
+		contentType = info.ContentType
+	}
+
+	ctx.DataFromReader(http.StatusOK, info.Size, contentType, file, extraHeaders)
 }
