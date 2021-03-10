@@ -7,14 +7,22 @@ import (
 )
 
 type S3Config struct {
-	Endpoint        string `yaml:"endpoint" envconfig:"S3_ENDPOINT"`
-	AccessKeyID     string `yaml:"accessKeyID" envconfig:"S3_ACCESS_KEY_ID"`
-	SecretAccessKey string `yaml:"secretAccessKey" envconfig:"S3_SECRET_ACCESS_KEY"`
-	Bucket          string `yaml:"bucket" envconfig:"S3_BUCKET"`
+	Endpoint        string   `yaml:"endpoint" envconfig:"S3_ENDPOINT"`
+	AccessKeyID     string   `yaml:"accessKeyID" envconfig:"S3_ACCESS_KEY_ID"`
+	SecretAccessKey string   `yaml:"secretAccessKey" envconfig:"S3_SECRET_ACCESS_KEY"`
+	Bucket          string   `yaml:"bucket" envconfig:"S3_BUCKET"`
+	RegionName      string   `yaml:"regionName" envconfig:"S3_REGION_NAME"`
+	UseSSL          bool     `yaml:"useSSL" envconfig:"S3_USE_SSL"`
+	Buckets         []string `yaml:"buckets" envconfig:"S3_BUCKETS"`
+}
+
+type CorsConfig struct {
+	AllowOrigins []string `yaml:"allowOrigins" envconfig:"CORS_ALLOW_ORIGINS"`
 }
 
 type Config struct {
-	S3Config S3Config `yaml:"s3"`
+	S3Config   S3Config   `yaml:"s3"`
+	CorsConfig CorsConfig `yaml:"cors"`
 
 	Context struct {
 		Context context.Context    `yaml:"-" envconfig:"-"`
@@ -30,8 +38,8 @@ func init() {
 
 // SetupSettings initialize the configuration instance
 func SetupSettings() {
-	var err error
-	err = envconfig.Process("", Settings)
+
+	err := envconfig.Process("", Settings)
 	if err != nil {
 		log.Fatalf("setting, fail to get from env': %v", err)
 	}
