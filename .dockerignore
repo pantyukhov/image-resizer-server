@@ -1,0 +1,12 @@
+.DS_Store
+*/.idea
+*/.git
+*/__pycache__
+*/.mypy_cache
+*/.pytest_cache
+tmp_metrics
+venv
+node_modules
+*/node_modules
+
+tests/
