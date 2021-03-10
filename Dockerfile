@@ -1,6 +1,9 @@
 FROM golang:1.15-alpine AS builder
 
-WORKDIR /opt/resizer
+ENV NAME "resizer"
+WORKDIR /opt/${NAME}
+
+RUN apk add --no-cache make
 
 COPY go.mod .
 COPY go.sum .
@@ -8,14 +11,13 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -ldflags '-v -w -s'
-
-RUN go build -o /bin/resizer
+RUN ["make", "build"]
 
 FROM alpine:latest
+ENV NAME "resizer"
 
-WORKDIR /opt/resizer
+WORKDIR /opt/${NAME}
 
-COPY --from=builder /bin/resizer ./resizer
+COPY --from=builder /bin/${NAME} ./${NAME}
 
-CMD ./resizer
+CMD ./${NAME}
