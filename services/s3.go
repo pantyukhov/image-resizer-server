@@ -69,7 +69,7 @@ func (s *S3Service) GetResizeSettings(filepath string) (uint, uint, string) {
 
 	path := strings.Join(items[:len(items)-2], "/") + "/" + items[len(items)-1]
 
-	return uint(height), uint(width), path
+	return uint(width), uint(height), path
 }
 
 func (s *S3Service) ResizeImage(localPath string, height uint, width uint) (image.Image, error) {
@@ -89,7 +89,7 @@ func (s *S3Service) ResizeBytesImage(file io.Reader, height uint, width uint) (i
 		return nil, err
 	}
 
-	newImg := imaging.Resize(img, int(width), int(height), imaging.Lanczos)
+	newImg := imaging.Fill(img, int(width), int(height), imaging.Center, imaging.Lanczos)
 
 	return newImg, err
 }
