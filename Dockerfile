@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o /bin/${NAME} -gcflags "all=-N -l" ./cmd/${NAME}
+RUN go build -o /bin/${NAME} ./cmd/${NAME}
 
 FROM alpine:latest
 ENV NAME "resizer"
