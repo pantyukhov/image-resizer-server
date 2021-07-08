@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY . .
 
-RUN ["make", "build"]
+RUN ["make", "build_debug"]
 
 FROM alpine:latest
 ENV NAME "resizer"
