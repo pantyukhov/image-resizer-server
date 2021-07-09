@@ -13,6 +13,7 @@ import (
 	"image/jpeg"
 	"io"
 	"log"
+	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -102,7 +103,7 @@ func (s *S3Service) resizeJpeg(file io.Reader, height uint, width uint) (bytes.B
 		newImg = imaging.Resize(img, int(width), int(height), imaging.Lanczos)
 	}
 
-	err = jpeg.Encode(bufio.NewWriter(&jpgBuf), newImg, &jpeg.Options{Quality: 60})
+	err = jpeg.Encode(bufio.NewWriter(&jpgBuf), newImg, &jpeg.Options{Quality: 65})
 
 	return jpgBuf, err
 }
@@ -162,17 +163,12 @@ func (s *S3Service) ResizeFilePath(bucket, filepath string) error {
 		return err
 	}
 
-	info, err := file.Stat()
-	if err != nil {
-		return err
-	}
-
 	buf, err := s.ResizeBytesImage(file, filepath, height, width)
 
 	if err != nil {
 		return err
 	}
-
+	contentType := http.DetectContentType(buf.Bytes())
 	_, err = s.MinioClient.PutObject(
 		setting.Settings.Context.Context,
 		bucket,
@@ -180,7 +176,7 @@ func (s *S3Service) ResizeFilePath(bucket, filepath string) error {
 		&buf,
 		int64(buf.Len()),
 		minio.PutObjectOptions{
-			ContentType: info.ContentType,
+			ContentType: contentType,
 		},
 	)
 
