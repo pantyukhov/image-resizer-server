@@ -87,11 +87,12 @@ func (s *S3Service) ResizeImage(localPath string, height uint, width uint) (imag
 	return m, err
 }
 
-func (s *S3Service) resizeJpeg(file io.Reader, height uint, width uint) (image.Image, error) {
+func (s *S3Service) resizeJpeg(file io.Reader, height uint, width uint) (bytes.Buffer, error) {
 	img, err := imaging.Decode(file, imaging.AutoOrientation(true))
 
+	var jpgBuf bytes.Buffer
 	if err != nil {
-		return nil, err
+		return jpgBuf, err
 	}
 
 	var newImg image.Image
@@ -101,19 +102,15 @@ func (s *S3Service) resizeJpeg(file io.Reader, height uint, width uint) (image.I
 		newImg = imaging.Resize(img, int(width), int(height), imaging.Lanczos)
 	}
 
-	return newImg, err
+	err = jpeg.Encode(bufio.NewWriter(&jpgBuf), newImg, &jpeg.Options{Quality: jpeg.DefaultQuality})
+
+	return jpgBuf, err
 }
 
 func (s *S3Service) ResizeBytesImage(file io.Reader, filePath string, height uint, width uint) (bytes.Buffer, error) {
+	jpgBuf, err := s.resizeJpeg(file, height, width)
 
-	var jpgBuf bytes.Buffer
-	f, _ := imaging.FormatFromFilename(s.getOriginalPath(filePath))
-	jpgImage, err := s.resizeJpeg(file, height, width)
 	if err != nil {
-		return jpgBuf, err
-	}
-
-	if err := imaging.Encode(&jpgBuf, jpgImage, f); err != nil {
 		return jpgBuf, err
 	}
 
@@ -125,7 +122,7 @@ func (s *S3Service) ResizeBytesImage(file io.Reader, filePath string, height uin
 		}
 
 		var output bytes.Buffer
-		options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)
+		options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 100)
 
 		if err != nil {
 			return output, err
