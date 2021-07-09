@@ -89,7 +89,12 @@ func (s *S3Service) ResizeBytesImage(file io.Reader, height uint, width uint) (i
 		return nil, err
 	}
 
-	newImg := imaging.Fill(img, int(width), int(height), imaging.Center, imaging.Lanczos)
+	var newImg image.Image
+	if height > 0 && width > 0 {
+		newImg = imaging.Fill(img, int(width), int(height), imaging.Center, imaging.Lanczos)
+	} else {
+		newImg = imaging.Resize(img, int(width), int(height), imaging.Lanczos)
+	}
 
 	return newImg, err
 }
