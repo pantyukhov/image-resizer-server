@@ -102,7 +102,7 @@ func (s *S3Service) resizeJpeg(file io.Reader, height uint, width uint) (bytes.B
 		newImg = imaging.Resize(img, int(width), int(height), imaging.Lanczos)
 	}
 
-	err = jpeg.Encode(bufio.NewWriter(&jpgBuf), newImg, &jpeg.Options{Quality: jpeg.DefaultQuality})
+	err = jpeg.Encode(bufio.NewWriter(&jpgBuf), newImg, &jpeg.Options{Quality: 60})
 
 	return jpgBuf, err
 }
