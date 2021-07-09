@@ -3,7 +3,7 @@ FROM golang:1.15-alpine AS builder
 ENV NAME "resizer"
 WORKDIR /opt/${NAME}
 
-RUN apk add --no-cache make libwebp-dev
+RUN apk add --no-cache make libwebp-dev build-base
 
 COPY go.mod .
 COPY go.sum .
