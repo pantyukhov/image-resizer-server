@@ -1,14 +1,19 @@
 package services
 
 import (
+	"bufio"
 	"bytes"
 	"github.com/disintegration/imaging"
+	"github.com/kolesa-team/go-webp/encoder"
+	"github.com/kolesa-team/go-webp/webp"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/pantyukhov/imageresizeserver/pkg/setting"
 	"image"
+	"image/jpeg"
 	"io"
 	"log"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -82,7 +87,7 @@ func (s *S3Service) ResizeImage(localPath string, height uint, width uint) (imag
 	return m, err
 }
 
-func (s *S3Service) ResizeBytesImage(file io.Reader, height uint, width uint) (image.Image, error) {
+func (s *S3Service) resizeJpeg(file io.Reader, height uint, width uint) (image.Image, error) {
 	img, err := imaging.Decode(file, imaging.AutoOrientation(true))
 
 	if err != nil {
@@ -99,13 +104,61 @@ func (s *S3Service) ResizeBytesImage(file io.Reader, height uint, width uint) (i
 	return newImg, err
 }
 
+func (s *S3Service) ResizeBytesImage(file io.Reader, filePath string, height uint, width uint) (bytes.Buffer, error) {
+
+	var jpgBuf bytes.Buffer
+	f, _ := imaging.FormatFromFilename(s.getOriginalPath(filePath))
+	jpgImage, err := s.resizeJpeg(file, height, width)
+	if err != nil {
+		return jpgBuf, err
+	}
+
+	if err := imaging.Encode(&jpgBuf, jpgImage, f); err != nil {
+		return jpgBuf, err
+	}
+
+	ext := filepath.Ext(filePath)
+	if ext == ".webp" {
+		img, err := jpeg.Decode(bytes.NewReader(jpgBuf.Bytes()))
+		if err != nil {
+			return jpgBuf, err
+		}
+
+		var output bytes.Buffer
+		options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)
+
+		if err != nil {
+			return output, err
+		}
+		if err := webp.Encode(bufio.NewWriter(&output), img, options); err != nil {
+			return output, err
+		}
+		return output, nil
+	}
+
+	return jpgBuf, err
+
+}
+
+func (s *S3Service) getOriginalPath(path string) string {
+
+	var extension = filepath.Ext(path)
+	if extension == ".webp" {
+		return path[0 : len(path)-len(extension)]
+	}
+
+	return path
+}
+
 func (s *S3Service) ResizeFilePath(bucket, filepath string) error {
 	height, width, path := s.GetResizeSettings(filepath)
+
+	originalPath := s.getOriginalPath(path)
 
 	file, err := s.MinioClient.GetObject(
 		setting.Settings.Context.Context,
 		bucket,
-		path,
+		originalPath,
 		minio.GetObjectOptions{},
 	)
 	if err != nil {
@@ -117,17 +170,9 @@ func (s *S3Service) ResizeFilePath(bucket, filepath string) error {
 		return err
 	}
 
-	newImg, err := s.ResizeBytesImage(file, height, width)
+	buf, err := s.ResizeBytesImage(file, filepath, height, width)
 
 	if err != nil {
-		return err
-	}
-
-	var buf bytes.Buffer
-
-	f, _ := imaging.FormatFromFilename(filepath)
-
-	if err := imaging.Encode(&buf, newImg, f); err != nil {
 		return err
 	}
 
