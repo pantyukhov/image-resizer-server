@@ -220,7 +220,6 @@ func (s *S3Service) SeparateBucket(filepath string) (bucket string, path string)
 }
 
 func (s *S3Service) GetOrCreteFile(filepath string, allowResize bool) (*minio.Object, *minio.ObjectInfo, error) {
-
 	// filepath = {bucket}/{path}
 	filepath = strings.TrimLeft(filepath, "/")
 

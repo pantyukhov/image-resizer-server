@@ -2,6 +2,7 @@ package transport
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/minio/minio-go/v7"
 	"github.com/pantyukhov/imageresizeserver/services"
 	"net/http"
 )
@@ -19,8 +20,10 @@ func NewFileHandler(s3Service services.S3Service) FileHandler {
 // Handle request to file from S3 storage
 // If file not found, try select from url
 func (f *FileHandler) HandleFile(ctx *gin.Context) {
-
 	file, info, err := f.S3Service.GetOrCreteFile(ctx.Request.URL.Path, true)
+	defer func(file *minio.Object) {
+		_ = file.Close()
+	}(file)
 
 	if err != nil {
 		ctx.JSON(500, gin.H{
