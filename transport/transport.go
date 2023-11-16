@@ -4,7 +4,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/pantyukhov/imageresizeserver/pkg/setting"
-	"github.com/zsais/go-gin-prometheus"
 	"log"
 	"net/http"
 )
@@ -20,7 +19,7 @@ func NewTransport(fileHandler FileHandler) Transport {
 }
 
 func (t *Transport) InitHttp() {
-	baseRoute := gin.New()
+	baseRoute := gin.Default()
 	baseRoute.Use(gin.Logger())
 	baseRoute.Use(gin.Recovery())
 
