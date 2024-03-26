@@ -19,6 +19,8 @@ import (
 	"strings"
 )
 
+const MaxImageSize = 4880
+
 type S3Service struct {
 	MinioClient *minio.Client
 }
@@ -74,6 +76,14 @@ func (s *S3Service) GetResizeSettings(filepath string) (uint, uint, string) {
 	}
 
 	path := strings.Join(items[:len(items)-2], "/") + "/" + items[len(items)-1]
+
+	// If requested dimensions are greater than MaxImageSize, set them to MaxImageSize
+	if width > MaxImageSize {
+		width = MaxImageSize
+	}
+	if height > MaxImageSize {
+		height = MaxImageSize
+	}
 
 	return uint(width), uint(height), path
 }
